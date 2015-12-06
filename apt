@@ -1,0 +1,83 @@
+#! /usr/bin/env bash
+#set -euo pipefail
+. include "args"
+# Public API
+# apt.installed pkg [pkg...]
+# apt.removed pkg [pkg...]
+
+function assert.single.arg() {
+  if [[ $# -ne 1 ]]; then
+    echo "ERROR: Expected a single argument!"
+    return 2
+  fi
+}
+
+function apt.assert.exists() {
+  assert.single.arg "$@"
+  if [[ $(apt-cache search "^$1$" | wc -l) -ne 1 ]]; then
+    echo "FACT: Package '$1' does not exist (according to apt-cache search)"
+    return 2
+  fi
+}
+
+function apt.update() {
+  sudo apt-key update
+  sudo apt-get update
+}
+
+function apt.assert.installed() {
+  assert.single.arg  "$@"
+  result=($(dpkg-query --status "$1" 2>/dev/null | grep -w "^Status:" ))
+  if ! [[ ${#result[@]} -ge 2 && ${result[1]} == "install" ]]; then
+    echo "FACT: Package '$1' is not installed (according to dpkg-query --status)"
+    return 2
+  fi
+}
+
+function apt.installed() {
+  packages=()
+  for package_name in "$@"; do
+    if apt.assert.removed "$package_name" ; then
+      apt.assert.exists "$package_name"
+      packages+=("$package_name")
+    fi
+  done
+  if [[ ${#packages[@]} > 0 ]]; then
+    for package_name in ${packages[@]} ; do
+      echo "$package_name"
+      # If an error is encountered during installation...
+      if ! sudo apt-get install -y "$package_name"; then
+        # Update keys and cache and retry
+        apt.update
+        sudo apt-get install -y "$package_name"
+      fi
+      apt.assert.installed "$package_name"
+    done
+  fi
+}
+
+function apt.assert.removed() {
+  ! apt.assert.installed "$@"
+}
+
+function apt.removed() {
+  packages=()
+  for package_name in "$@"; do
+    if apt.assert.installed "$package_name" ; then
+      packages+=("$package_name")
+    fi
+  done
+  if [[ ${#packages[@]} > 0 ]]; then
+    sudo apt-get remove -y "${packages[@]}"
+    for package_name in ${packages[@]}; do
+      apt.assert.removed "$package_name"
+    done
+  fi
+}
+
+# Useful but not sure what to do with it
+function what_provides() {
+  assert.single.arg "$@"
+  file=$(which "$1")
+  dpkg -S "$file" | sed 's/:.*$//'
+}

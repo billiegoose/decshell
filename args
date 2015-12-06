@@ -1,0 +1,9 @@
+#! /usr/bin/env bash
+set -eu
+
+function args.assert.single() {
+  if [[ $# -ne 1 ]]; then
+    echo "ERROR: Expected a single argument!"
+    return 2
+  fi
+}
