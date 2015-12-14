@@ -5,15 +5,8 @@
 # apt.installed pkg [pkg...]
 # apt.removed pkg [pkg...]
 
-function assert.single.arg() {
-  if [[ $# -ne 1 ]]; then
-    echo "ERROR: Expected a single argument!"
-    return 2
-  fi
-}
-
 function apt.assert.exists() {
-  assert.single.arg "$@"
+  args.assert.single "$@"
   if [[ $(apt-cache search "^$1$" | wc -l) -ne 1 ]]; then
     echo "FACT: Package '$1' does not exist (according to apt-cache search)"
     return 2
@@ -21,12 +14,23 @@ function apt.assert.exists() {
 }
 
 function apt.update() {
-  sudo apt-key update
-  sudo apt-get update
+  sudo apt-key update           # Update signing keys (to prevent errors)
+  sudo apt-get update           # Update package cache
+}
+
+function apt.upgrade_all() {
+  apt.update
+  sudo apt-get dist-upgrade -y  # Ensure all packages are at the latest version.
+                                # dist-upgrade may remove packages to resolve conflicts but that's OK here
+  sudo apt-get autoremove -y    # Remove old packages no longer needed
+}
+
+function apt.clean_cache() {
+  sudo apt-get clean            # Empty the package cache to save disk space.
 }
 
 function apt.assert.installed() {
-  assert.single.arg  "$@"
+  args.assert.single  "$@"
   result=($(dpkg-query --status "$1" 2>/dev/null | grep -w "^Status:" ))
   if ! [[ ${#result[@]} -ge 2 && ${result[1]} == "install" ]]; then
     echo "FACT: Package '$1' is not installed (according to dpkg-query --status)"
@@ -34,7 +38,7 @@ function apt.assert.installed() {
   fi
 }
 
-function apt.installed() {
+function apt.is.installed() {
   packages=()
   for package_name in "$@"; do
     if apt.assert.removed "$package_name" ; then
@@ -60,7 +64,7 @@ function apt.assert.removed() {
   ! apt.assert.installed "$@"
 }
 
-function apt.removed() {
+function apt.is.removed() {
   packages=()
   for package_name in "$@"; do
     if apt.assert.installed "$package_name" ; then
@@ -75,9 +79,23 @@ function apt.removed() {
   fi
 }
 
+function apt.unattended-upgrades.is.enabled() {
+  apt.is.installed unattended-upgrades
+  echo 'unattended-upgrades unattended-upgrades/enable_auto_updates boolean true' | sudo debconf-set-selections
+  sudo dpkg-reconfigure unattended-upgrades -f noninteractive
+}
+function apt.unattended-upgrades.is.disabled() {
+  if apt.assert.installed unattended-upgrades
+  then
+    echo 'unattended-upgrades unattended-upgrades/enable_auto_updates boolean false' | sudo debconf-set-selections
+    sudo dpkg-reconfigure unattended-upgrades -f noninteractive
+  fi
+  apt.is.removed unattended-upgrades
+}
+
 # Useful but not sure what to do with it
 function what_provides() {
-  assert.single.arg "$@"
+  args.assert.single "$@"
   file=$(which "$1")
   dpkg -S "$file" | sed 's/:.*$//'
 }

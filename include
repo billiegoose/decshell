@@ -1,6 +1,7 @@
 #! /usr/bin/env bash
-#set -euo pipefail
 DIR=$(dirname $(readlink -f "$BASH_SOURCE"))
-echo including "$DIR/$1"
-source "$DIR/$1"
-#source "$DIR/bash.args"
+for library in "$@"
+do
+    echo including "$DIR/$library"
+    source "$DIR/$library"
+done
