@@ -7,3 +7,10 @@ function args.assert.single() {
     return 2
   fi
 }
+
+function args.assert.double() {
+  if [[ $# -ne 2 ]]; then
+    echo "ERROR: Expected two arguments!"
+    return 2
+  fi
+}

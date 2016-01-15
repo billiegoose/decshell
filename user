@@ -14,7 +14,7 @@ function user.is.added() {
   args.assert.single  "$@"
   user_name="$1"
   if user.assert.removed "$user_name" ; then
-    sudo useradd -d "/home/${user_name}" -s /bin/bash -m "$user_name"
+    useradd -d "/home/${user_name}" -s /bin/bash -m "$user_name"
   fi
   user.assert.added "$user_name"
 }
@@ -28,7 +28,7 @@ function user.is.removed() {
   args.assert.single  "$@"
   user_name="$1"
   if user.assert.added "$user_name" ; then
-    sudo userdel "$user_name"
+    userdel "$user_name"
   fi
   user.assert.removed "$user_name"
 }

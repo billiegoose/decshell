@@ -14,8 +14,10 @@ function apt.assert.exists() {
 }
 
 function apt.update() {
-  sudo apt-key update           # Update signing keys (to prevent errors)
-  sudo apt-get update           # Update package cache
+  if apt.cache.assert.stale ; then
+    sudo apt-key update           # Update signing keys (to prevent errors)
+    sudo apt-get update           # Update package cache
+  fi
 }
 
 function apt.upgrade_all() {
@@ -23,6 +25,7 @@ function apt.upgrade_all() {
   sudo apt-get dist-upgrade -y  # Ensure all packages are at the latest version.
                                 # dist-upgrade may remove packages to resolve conflicts but that's OK here
   sudo apt-get autoremove -y    # Remove old packages no longer needed
+  sudo apt-get autoclean -y     # Remove deprecated archives from the package cache
 }
 
 function apt.clean_cache() {
@@ -98,4 +101,8 @@ function what_provides() {
   args.assert.single "$@"
   file=$(which "$1")
   dpkg -S "$file" | sed 's/:.*$//'
+}
+
+function apt.cache.assert.stale() {
+  return $(( $(date +%s) - $(stat -c %Y /var/cache/apt) < 24*60*60 ))
 }
