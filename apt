@@ -14,7 +14,7 @@ function apt.assert.exists() {
 }
 
 function apt.update() {
-  if apt.cache.assert.stale ; then
+  if apt.cache.assert.stale || [[ "$#" -ne 0 ]] && [[ "$1" == "force" ]]; then
     sudo apt-key update           # Update signing keys (to prevent errors)
     sudo apt-get update           # Update package cache
   fi
@@ -55,7 +55,7 @@ function apt.is.installed() {
       # If an error is encountered during installation...
       if ! sudo apt-get install -y "$package_name"; then
         # Update keys and cache and retry
-        apt.update
+        apt.update force
         sudo apt-get install -y "$package_name"
       fi
       apt.assert.installed "$package_name"
